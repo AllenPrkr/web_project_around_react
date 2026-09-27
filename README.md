@@ -18,7 +18,7 @@ Los formularios y botones de las tarjetas son únicamente visuales en esta etapa
 - TypeScript
 - Vite
 - CSS con metodología BEM
-- Oxlint
+- ESLint
 
 ## Instalación y ejecución
 
