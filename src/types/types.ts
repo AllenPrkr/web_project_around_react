@@ -1,13 +1,8 @@
-export type PopupConfig = {
-  title?: string
-  children: React.ReactNode
-}
-
-export interface CardData {
-  _id: string
-  name: string
-  link: string
-  owner: string
-  createdAt: string
-  isLiked: boolean
-}
+export type { CardData, CardFormData } from '../interfaces/CardData'
+export type { CurrentUserContextType } from '../interfaces/CurrentUserContextType'
+export type { ModalData, PopupConfig } from '../interfaces/ModalData'
+export type {
+  AvatarFormData,
+  UserData,
+  UserFormData,
+} from '../interfaces/UserData'

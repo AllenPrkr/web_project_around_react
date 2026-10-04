@@ -8,9 +8,11 @@ Migración a React y TypeScript del proyecto **Around The U.S.** de TripleTen. L
 - Componentes reutilizables para encabezado, contenido principal, pie de página, tarjetas y ventanas emergentes.
 - Apertura y cierre de formularios mediante estado de React.
 - Vista ampliada de las imágenes con su descripción.
+- Carga inicial del perfil y las tarjetas desde la API.
+- Edición del perfil y del avatar.
+- Creación y eliminación confirmada de tarjetas propias.
+- Gestión de Me gusta con actualización inmediata de la interfaz.
 - Diseño adaptable para escritorio y dispositivos móviles.
-
-Los formularios y botones de las tarjetas son únicamente visuales en esta etapa; todavía no guardan cambios ni se conectan a una API.
 
 ## Tecnologías
 
@@ -54,8 +56,11 @@ src/
 │   └── Main/
 │       ├── Card/
 │       └── Popup/
+├── contexts/     # Contexto global del usuario
 ├── images/       # Imágenes e iconos
-├── types/        # Tipos e interfaces compartidos
+├── interfaces/   # Interfaces de datos y del contexto
+├── types/        # Reexportaciones de tipos compartidos
+├── utils/        # Cliente configurado de la API
 ├── vendor/       # Fuentes y normalización CSS
 ├── index.css
 └── main.tsx
