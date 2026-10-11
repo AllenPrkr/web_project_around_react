@@ -1,14 +1,35 @@
 import { useContext, useState } from 'react'
 import CurrentUserContext from '../../../../contexts/CurrentUserContext'
+import useAsyncAction from '../../../../hooks/useAsyncAction'
+import useFormValidation from '../../../../hooks/useFormValidation'
+
+const validationRules = {
+  name: { label: 'El título', required: true, minLength: 2, maxLength: 30 },
+  link: {
+    label: 'El enlace de la imagen',
+    required: true,
+    type: 'url' as const,
+  },
+}
 
 export default function NewCard(): React.JSX.Element {
   const { handleAddPlaceSubmit } = useContext(CurrentUserContext)
   const [name, setName] = useState('')
   const [link, setLink] = useState('')
+  const values = { name, link }
+  const { errors, validateChangedField, validateField, validateForm } =
+    useFormValidation(values, validationRules)
+  const { isSubmitting, run, submitError } = useAsyncAction()
 
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>): void {
     event.preventDefault()
-    void handleAddPlaceSubmit({ name, link })
+
+    if (!validateForm()) return
+
+    void run(
+      () => handleAddPlaceSubmit({ name: name.trim(), link: link.trim() }),
+      'No se pudo crear la tarjeta. Inténtalo de nuevo.',
+    )
   }
 
   return (
@@ -19,7 +40,10 @@ export default function NewCard(): React.JSX.Element {
       noValidate
       onSubmit={handleSubmit}
     >
-      <label className="popup__field">
+      <div className="popup__field">
+        <label className="popup__label" htmlFor="card-name">
+          Título
+        </label>
         <input
           id="card-name"
           className="popup__input popup__input_type_card-name"
@@ -30,11 +54,25 @@ export default function NewCard(): React.JSX.Element {
           required
           type="text"
           value={name}
-          onChange={(event) => setName(event.target.value)}
+          aria-describedby="card-name-error"
+          aria-invalid={Boolean(errors.name)}
+          onBlur={() => validateField('name')}
+          onChange={(event) => {
+            setName(event.target.value)
+            validateChangedField('name', event.target.value)
+          }}
         />
-        <span className="popup__error" id="card-name-error"></span>
-      </label>
-      <label className="popup__field">
+        <span
+          className={`popup__input-error ${errors.name ? 'popup__input-error_active' : ''}`}
+          id="card-name-error"
+        >
+          {errors.name}
+        </span>
+      </div>
+      <div className="popup__field">
+        <label className="popup__label" htmlFor="card-url">
+          Enlace de la imagen
+        </label>
         <input
           id="card-url"
           className="popup__input popup__input_type_url"
@@ -43,12 +81,32 @@ export default function NewCard(): React.JSX.Element {
           required
           type="url"
           value={link}
-          onChange={(event) => setLink(event.target.value)}
+          aria-describedby="card-url-error"
+          aria-invalid={Boolean(errors.link)}
+          onBlur={() => validateField('link')}
+          onChange={(event) => {
+            setLink(event.target.value)
+            validateChangedField('link', event.target.value)
+          }}
         />
-        <span className="popup__error" id="card-url-error"></span>
-      </label>
-      <button className="button popup__button" type="submit">
-        Crear
+        <span
+          className={`popup__input-error ${errors.link ? 'popup__input-error_active' : ''}`}
+          id="card-url-error"
+        >
+          {errors.link}
+        </span>
+      </div>
+      {submitError && (
+        <p className="popup__submit-error" role="alert">
+          {submitError}
+        </p>
+      )}
+      <button
+        className="button popup__button"
+        disabled={isSubmitting}
+        type="submit"
+      >
+        {isSubmitting ? 'Creando…' : 'Crear'}
       </button>
     </form>
   )

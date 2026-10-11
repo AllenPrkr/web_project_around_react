@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import CurrentUserContext from '../contexts/CurrentUserContext'
+import { getErrorMessage } from '../hooks/useAsyncAction'
 import type {
   AvatarFormData,
   CardData,
@@ -13,34 +14,79 @@ import Footer from './Footer/Footer'
 import Header from './Header/Header'
 import Main from './Main/Main'
 
+type Feedback = {
+  type: 'error' | 'success'
+  message: string
+}
+
+async function getInitialData(): Promise<[UserData, CardData[]]> {
+  return await Promise.all([api.getUserInfo(), api.getInitialCards()])
+}
+
 function App(): React.JSX.Element {
   const [currentUser, setCurrentUser] = useState<UserData | null>(null)
   const [cards, setCards] = useState<CardData[]>([])
   const [popup, setPopup] = useState<PopupConfig | null>(null)
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const [feedback, setFeedback] = useState<Feedback | null>(null)
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const [userData, initialCards] = await Promise.all([
-          api.getUserInfo(),
-          api.getInitialCards(),
-        ])
+  const loadInitialData = useCallback(async (): Promise<void> => {
+    setIsInitialLoading(true)
+    setFeedback(null)
 
-        setCurrentUser(userData)
-        setCards(initialCards)
-      } catch (error) {
-        console.error(error)
-      }
-    })()
+    try {
+      const [userData, initialCards] = await getInitialData()
+
+      setCurrentUser(userData)
+      setCards(initialCards)
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(
+          error,
+          'No se pudieron cargar los datos. Inténtalo de nuevo.',
+        ),
+      })
+    } finally {
+      setIsInitialLoading(false)
+    }
   }, [])
 
-  function handleOpenPopup(popupConfig: PopupConfig): void {
-    setPopup(popupConfig)
-  }
+  useEffect(() => {
+    let ignoreResponse = false
 
-  function handleClosePopup(): void {
+    void getInitialData()
+      .then(([userData, initialCards]) => {
+        if (ignoreResponse) return
+        setCurrentUser(userData)
+        setCards(initialCards)
+      })
+      .catch((error: unknown) => {
+        if (ignoreResponse) return
+        setFeedback({
+          type: 'error',
+          message: getErrorMessage(
+            error,
+            'No se pudieron cargar los datos. Inténtalo de nuevo.',
+          ),
+        })
+      })
+      .finally(() => {
+        if (!ignoreResponse) setIsInitialLoading(false)
+      })
+
+    return () => {
+      ignoreResponse = true
+    }
+  }, [])
+
+  const handleOpenPopup = useCallback((popupConfig: PopupConfig): void => {
+    setPopup(popupConfig)
+  }, [])
+
+  const handleClosePopup = useCallback((): void => {
     setPopup(null)
-  }
+  }, [])
 
   const handleCardLike = async (card: CardData): Promise<void> => {
     try {
@@ -54,8 +100,13 @@ function App(): React.JSX.Element {
           currentCard._id === card._id ? newCard : currentCard,
         ),
       )
+      setFeedback({ type: 'success', message: 'Me gusta actualizado.' })
     } catch (error) {
-      console.error(error)
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(error, 'No se pudo actualizar Me gusta.'),
+      })
+      throw error
     }
   }
 
@@ -66,8 +117,13 @@ function App(): React.JSX.Element {
         state.filter((currentCard) => currentCard._id !== card._id),
       )
       setPopup(null)
+      setFeedback({ type: 'success', message: 'Tarjeta eliminada.' })
     } catch (error) {
-      console.error(error)
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(error, 'No se pudo eliminar la tarjeta.'),
+      })
+      throw error
     }
   }
 
@@ -76,8 +132,13 @@ function App(): React.JSX.Element {
       const updatedUser = await api.updateUserInfo(userData)
       setCurrentUser(updatedUser)
       setPopup(null)
+      setFeedback({ type: 'success', message: 'Perfil actualizado.' })
     } catch (error) {
-      console.error(error)
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(error, 'No se pudo actualizar el perfil.'),
+      })
+      throw error
     }
   }
 
@@ -88,8 +149,13 @@ function App(): React.JSX.Element {
       const updatedUser = await api.updateAvatar(avatarData)
       setCurrentUser(updatedUser)
       setPopup(null)
+      setFeedback({ type: 'success', message: 'Avatar actualizado.' })
     } catch (error) {
-      console.error(error)
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(error, 'No se pudo actualizar el avatar.'),
+      })
+      throw error
     }
   }
 
@@ -100,8 +166,13 @@ function App(): React.JSX.Element {
       const newCard = await api.addCard(cardData)
       setCards((state) => [newCard, ...state])
       setPopup(null)
+      setFeedback({ type: 'success', message: 'Tarjeta creada.' })
     } catch (error) {
-      console.error(error)
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(error, 'No se pudo crear la tarjeta.'),
+      })
+      throw error
     }
   }
 
@@ -116,14 +187,46 @@ function App(): React.JSX.Element {
     >
       <div className="page__content">
         <Header />
-        <Main
-          cards={cards}
-          handleCardDelete={handleCardDelete}
-          handleCardLike={handleCardLike}
-          handleOpenPopup={handleOpenPopup}
-          handleClosePopup={handleClosePopup}
-          popup={popup}
-        />
+        {feedback && (
+          <div
+            className={`app-feedback app-feedback_type_${feedback.type}`}
+            role={feedback.type === 'error' ? 'alert' : 'status'}
+          >
+            <span>{feedback.message}</span>
+            {feedback.type === 'error' && currentUser === null && (
+              <button
+                className="app-feedback__retry"
+                disabled={isInitialLoading}
+                type="button"
+                onClick={() => void loadInitialData()}
+              >
+                Reintentar
+              </button>
+            )}
+            <button
+              aria-label="Cerrar aviso"
+              className="app-feedback__close"
+              type="button"
+              onClick={() => setFeedback(null)}
+            >
+              ×
+            </button>
+          </div>
+        )}
+        {isInitialLoading ? (
+          <p className="app-loading" role="status">
+            Cargando perfil y tarjetas…
+          </p>
+        ) : (
+          <Main
+            cards={cards}
+            handleCardDelete={handleCardDelete}
+            handleCardLike={handleCardLike}
+            handleOpenPopup={handleOpenPopup}
+            handleClosePopup={handleClosePopup}
+            popup={popup}
+          />
+        )}
         <Footer />
       </div>
     </CurrentUserContext.Provider>

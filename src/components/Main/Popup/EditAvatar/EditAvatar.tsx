@@ -1,16 +1,32 @@
-import { useContext, useRef } from 'react'
+import { useContext, useState } from 'react'
 import CurrentUserContext from '../../../../contexts/CurrentUserContext'
+import useAsyncAction from '../../../../hooks/useAsyncAction'
+import useFormValidation from '../../../../hooks/useFormValidation'
+
+const validationRules = {
+  avatar: {
+    label: 'El enlace del avatar',
+    required: true,
+    type: 'url' as const,
+  },
+}
 
 export default function EditAvatar(): React.JSX.Element {
   const { handleUpdateAvatar } = useContext(CurrentUserContext)
-  const avatarRef = useRef<HTMLInputElement>(null)
+  const [avatar, setAvatar] = useState('')
+  const { errors, validateChangedField, validateField, validateForm } =
+    useFormValidation({ avatar }, validationRules)
+  const { isSubmitting, run, submitError } = useAsyncAction()
 
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>): void {
     event.preventDefault()
 
-    if (avatarRef.current) {
-      void handleUpdateAvatar({ avatar: avatarRef.current.value })
-    }
+    if (!validateForm()) return
+
+    void run(
+      () => handleUpdateAvatar({ avatar: avatar.trim() }),
+      'No se pudo actualizar el avatar. Inténtalo de nuevo.',
+    )
   }
 
   return (
@@ -21,7 +37,10 @@ export default function EditAvatar(): React.JSX.Element {
       noValidate
       onSubmit={handleSubmit}
     >
-      <label className="popup__field">
+      <div className="popup__field">
+        <label className="popup__label" htmlFor="profile-avatar">
+          Enlace del avatar
+        </label>
         <input
           id="profile-avatar"
           className="popup__input popup__input_type_avatar"
@@ -29,12 +48,33 @@ export default function EditAvatar(): React.JSX.Element {
           placeholder="Enlace a la imagen"
           required
           type="url"
-          ref={avatarRef}
+          value={avatar}
+          aria-describedby="profile-avatar-error"
+          aria-invalid={Boolean(errors.avatar)}
+          onBlur={() => validateField('avatar')}
+          onChange={(event) => {
+            setAvatar(event.target.value)
+            validateChangedField('avatar', event.target.value)
+          }}
         />
-        <span className="popup__error" id="profile-avatar-error"></span>
-      </label>
-      <button className="button popup__button" type="submit">
-        Guardar
+        <span
+          className={`popup__input-error ${errors.avatar ? 'popup__input-error_active' : ''}`}
+          id="profile-avatar-error"
+        >
+          {errors.avatar}
+        </span>
+      </div>
+      {submitError && (
+        <p className="popup__submit-error" role="alert">
+          {submitError}
+        </p>
+      )}
+      <button
+        className="button popup__button"
+        disabled={isSubmitting}
+        type="submit"
+      >
+        {isSubmitting ? 'Guardando…' : 'Guardar'}
       </button>
     </form>
   )

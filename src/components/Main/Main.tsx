@@ -10,7 +10,7 @@ import Popup from './Popup/Popup'
 type MainProps = {
   cards: CardData[]
   handleCardDelete: (card: CardData) => Promise<void>
-  handleCardLike: (card: CardData) => void
+  handleCardLike: (card: CardData) => Promise<void>
   handleOpenPopup: (popup: PopupConfig) => void
   handleClosePopup: () => void
   popup: PopupConfig | null
